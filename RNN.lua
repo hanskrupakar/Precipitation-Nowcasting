@@ -4,6 +4,10 @@ require 'cutorch'
 require 'cunn'
 require 'hdf5'
 
+function sleep(n)
+  os.execute("sleep " .. tonumber(n))
+end
+
 cutorch.setDevice(1) -- GPU
 
 cmd = torch.CmdLine()
@@ -215,10 +219,22 @@ else
 		output = rnn:forward(inputs)
 		err = criterion:forward(torch.mul(torch.add(torch.mul(torch.add(output[params.seqlen], 1), 0.5*(max[16]-min[16])), min[16]), 0.0393701), torch.mul(torch.add(torch.mul(torch.add(targets[1], 1), 0.5*(max[16]-min[16])), min[16]), 0.0393701))
 		
-		print ('BATCH: '..i..' ERR: '..err)
+		print ('BATCH: '..i..':\n ERROR for 32 ENTRIES: '.. string.format("%1.3f", err) ..' inches\n')
+		
+		for i=1, targets[1]:size()[1] do
+			print ('\tPredicted Prec: '..string.format("%1.3f", ((output[params.seqlen][i][1] + 1) * 0.5*(max[16]-min[16]) + min[16]))..' mm\tActual Prec: '..string.format("%1.3f", ((targets[1][i][1] + 1) * 0.5*(max[16]-min[16]) + min[16]))..' mm')
+		end
+		
+		print ('\n\t\t........................................\n')
+		
+		local x, y = output[params.seqlen], targets[1]
+		
+		--print ("Pearson Correlation Co-efficient R: "..string.format("%1.4f", (32*torch.sum(torch.cmul(x,y))-torch.sum(x)*torch.sum(y))/math.sqrt((32*torch.sum(torch.cmul(x,x))-torch.sum(x)*torch.sum(x))*(32*torch.sum(torch.cmul(y,y))-torch.sum(y)*torch.sum(y)))))
 		
 		gnuplot.axis({0,35,0,0.5})
 		gnuplot.plot({'Actual Precipitation', torch.range(1, params.batch_size), torch.mul(torch.add(torch.mul(torch.add(torch.reshape(targets[1], params.batch_size), 1), 0.5*(max[16]-min[16])), min[16]), 0.0393701),'+'}, {'Predicted Line', torch.range(1, params.batch_size), torch.mul(torch.add(torch.mul(torch.add(torch.reshape(output[params.seqlen], params.batch_size), 1), 0.5*(max[16]-min[16])), min[16]), 0.0393701),'-'})
+		
+		sleep(1)
 		
 	end	
 
