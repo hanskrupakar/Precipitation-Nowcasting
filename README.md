@@ -41,18 +41,33 @@ Command Line Options:
 Precipitation Nowcasting
 
 Options
+
   -num_layers    No of hidden LSTM layers [4]
+
   -test          Train/Test Flag [false]
+
   -iters         No. of iterations on dataset [100]
+
   -batch_size    Batch size for BGD [32]
+
   -seqlen        No. of sequences of 15 min precipitation parameters (should be same as preprocessing data.py script) [24]
+
   -hidden_size   Hidden Layer Size [1000]
+
   -input_size    No. of parameters (15) [15]
+
   -learning_rate Learning rate for training [0.001]
+
   -output_size   Size of predicted output (1 - precipitation values) [1]
+
   -load_from     Checkpoint save file to load model from []
+
   -lr_decay      Learning Rate Decay [0.8]
+
   -decay_rate    Num epochs per every learning rate decay [3]
+
   -finetune      Finetune on large error batches to account for lesser # of precipitation values compared to 0 prec (0.83%) [false]
+
   -finetune_err  Error threshold to select finetune batches [0.005]
+
   -num_finetune  Number of times to finetune the data [2]
