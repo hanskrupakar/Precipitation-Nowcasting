@@ -1,10 +1,14 @@
 # Precipitation-Nowcasting
 
-STEP 1: Download the Dataset here: https://www.usbr.gov/pn-bin/instant.pl?station=FOGO&year=2014&month=1&day=1&year=2017&month=4&day=1&pcode=OB&pcode=OBX&pcode=OBM&pcode=OBN&pcode=TU&pcode=TUX&pcode=TUN&pcode=EA&pcode=TP&pcode=WD&pcode=WG&pcode=WS&pcode=UI&pcode=SQ&pcode=SI&pcode=PC&pcode=WDS
+STEP 1: Download the Agrimet Dataset here: https://www.usbr.gov/pn-bin/instant.pl?station=FOGO&year=2014&month=1&day=1&year=2017&month=4&day=1&pcode=OB&pcode=OBX&pcode=OBM&pcode=OBN&pcode=TU&pcode=TUX&pcode=TUN&pcode=EA&pcode=TP&pcode=WD&pcode=WG&pcode=WS&pcode=UI&pcode=SQ&pcode=SI&pcode=PC&pcode=WDS
 
 FOGO (Forest Grove Oregon Station) 1/1/2014 to 4/1/2017 all the values. Download and remove the title row such that it starts with the first row of values.
 
-STEP 2: Install all dependencies necessary
+STEP 2: Download the NEXRAD Radar Level 3 images here: https://www.ncdc.noaa.gov/cdo-web/datatools/selectlocation
+
+Select Portland, Oregon region and download the NEXRAD Level 3 data for the station for 2014 to March, 2017. Extract the directories present as tar files in the FTP into the dataset folder `RADAR DATA/Dataset`
+
+STEP 3: Install all dependencies necessary
 
 Python 2.7/3.x dependencies:
     
@@ -34,7 +38,9 @@ Amount of disk space required:
     322MB for the hdf5 file created from dataset for torch
     1.6GB each for every checkpoint file created
     
-STEP 3: Run RNN.lua for training, checkpointing, testing and visualization
+STEP 4: Run the preprocessing script `data.py` for Text-only dataset extraction and `extract.py` both Agrimet and NEXRAD extraction dataset.
+ 
+STEP 5: Run RNN.lua for training, checkpointing, testing and visualization
  
 Command Line Options:
 

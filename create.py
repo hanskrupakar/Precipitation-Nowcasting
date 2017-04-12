@@ -97,8 +97,9 @@ def create_batches(X, X_img, Y, batch_size):
 
 	X, X_img, Y = np.reshape(X, (-1, batch_size, 24, 15)), np.reshape(X_img, (-1, batch_size, 24)), np.reshape(Y, (-1, batch_size, 1))
 
+	# divide data into 90% training data and 10% testing data approximately
 	tno = int(math.ceil(np.shape(X)[0]*0.9))
-	testno = np.shape(X)[0]-tno
+	testno = np.shape(X)[0]-tno 
 	
 	return tno, testno
 	
