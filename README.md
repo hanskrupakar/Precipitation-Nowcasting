@@ -63,3 +63,8 @@ Options
     -finetune            Finetune on large error batches to account for lesser # of precipitation values compared to 0 prec (0.83%) [false]
     -finetune_err    Error threshold to select finetune batches [0.005]
     -num_finetune    Number of times to finetune the data [2]
+    
+Example Invoke Command:
+
+    $ th RNN.lua -finetune -finetune_err 1 -load_from minmax_full_4LSTMs_11.2000.t7 -decay_rate 1 -lr_decay 0.01 -num_finetune 3 >> minmax_log\(4LSTMs\,Norm\).txt 
+

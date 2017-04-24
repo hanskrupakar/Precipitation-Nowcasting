@@ -26,11 +26,11 @@ cmd:option('-input_size',15,'No. of parameters (15)')
 cmd:option('-learning_rate',0.001,'Learning rate for training')
 cmd:option('-output_size',1,'Size of predicted output (1 - precipitation values)')
 cmd:option('-load_from','','Checkpoint save file to load model from')
-cmd:option('-lr_decay',0.8,'Learning Rate Decay')
+cmd:option('-lr_decay',0.1,'Learning Rate Decay')
 cmd:option('-decay_rate', 3,'Num epochs per every learning rate decay') 
 cmd:option('-finetune', false, 'Finetune on large error batches to account for lesser # of precipitation values compared to 0 prec (0.83%)')
-cmd:option('-finetune_err', 0.005, 'Error threshold to select finetune batches')
-cmd:option('-num_finetune', 2, 'Number of times to finetune the data')
+cmd:option('-finetune_err', 1, 'Error threshold to select finetune batches')
+cmd:option('-num_finetune', 3, 'Number of times to finetune the data')
 cmd:text()
 
 params = cmd:parse(arg)
@@ -49,7 +49,6 @@ if not params.test then
 		for i=1, params.num_layers do
 
 			rnn:add(nn.FastLSTM(params.hidden_size, params.hidden_size))
-			rnn:add(nn.NormStabilizer())
 
 		end
 
@@ -91,7 +90,7 @@ if not params.test then
 	local min = f:read('min'):all()
 	local max = f:read('max'):all()
 
-	local f = io.open('finetune_full.txt', 'r')
+	local f = io.open(string.format('finetune_full_%f.txt', params.finetune_err), 'r')
 	
 	local grad_zero = {}
 	for step=1,params.seqlen do
@@ -100,6 +99,10 @@ if not params.test then
 	
 	if f==nil and params.finetune or not params.finetune then 
 
+		if f~=nil then
+			f:close()
+		end
+		
 		if params.finetune then
 			iteration=1
 			params.iters=1
@@ -113,7 +116,9 @@ if not params.test then
 			else
 				checkpoint=1
 			end
-
+			
+			local prev_err, ck = 0, 0
+			
 			for i=checkpoint, trainx:size()[1] do
 
 				local inputs, targets = {}, {}		
@@ -126,11 +131,25 @@ if not params.test then
 				local outputs = rnn:forward(inputs)
 				local err = criterion:forward(torch.add(torch.mul(torch.add(outputs[params.seqlen], 1), 0.5*(max[16]-min[16])), min[16]), torch.add(torch.mul(torch.add(targets[1], 1), 0.5*(max[16]-min[16])), min[16]))
 			 
-				local file = io.open('finetune_full.txt', 'a')	
+				local file = io.open(string.format('finetune_full_%f.txt', params.finetune_err), 'a')	
+				
+				if prev_err<params.finetune_err then
+					if ck>0 then
+						file:write(string.format('%d', i-1)..'\n')
+						ck=ck-1
+					end
+				else 
+					if err>params.finetune_err then
+						ck=ck+1
+					end
+				end
+				
 				if err>params.finetune_err then
 					file:write(i..'\n')
 				end
 				file:close()
+				
+				prev_err = err
 				
 				if not params.finetune then
 						
@@ -156,50 +175,52 @@ if not params.test then
 			iteration = iteration + 1
 			
 			if not params.finetune then
-				local f = io.open('finetune_full.txt', 'w+')
-				f:close()
+				local file = io.open(string.format('finetune_full_%f.txt', params.finetune_err), 'w+')
+				file:close()
 			end
 		end
+	end
 	
-	else
+	if params.finetune then
+	
 		local fine = {}
-		for line in io.lines('finetune_full.txt') do
+		for line in io.lines(string.format('finetune_full_%f.txt', params.finetune_err)) do
 			if tonumber(line) then
 				table.insert(fine, tonumber(line))
 			end
 		end 
-		
-		print (string.format('\n\t\t\t\tFINETUNE OPERATION:\n\t\tOver 2x%d batches selected using finetune_err\n\n', #fine))
+	
+		print (string.format('\n\t\t\t\tFINETUNE OPERATION:\n\t\tOver %d batches selected using finetune_err\n\n', #fine))
 		local epoch = 1
-		while epoch<params.num_finetune do
+		while epoch<=params.num_finetune do
 			local global = 1
 			for i=1, #fine do
-				for temp=0,1 do
-					local inputs, targets = {}, {}		
-					for j=1, trainx:size()[2] do
-						inputs[j]=trainx[{fine[i]+temp, j, {}, {}}]:cuda()
-					end
-					targets[1] = torch.reshape(trainy[{fine[i]+temp, 1, {}}], params.batch_size, 1):cuda()
-		
-					local outputs = rnn:forward(inputs)
-					local err = criterion:forward(outputs[params.seqlen], targets[1])
-					print(string.format("Iter %d Batch %d/%d: Error = %f ; Learning Rate = %f", epoch, global, 2*#fine, err, params.learning_rate))
-					local gradOutputs = criterion:backward(outputs[params.seqlen], targets[1])
-					grad_zero[params.seqlen] = gradOutputs
-					local gradInputs = rnn:backward(inputs, grad_zero)
-					rnn:updateParameters(params.learning_rate)
-					global=global+1
-				end
-			end
 			
+				local inputs, targets = {}, {}		
+				for j=1, trainx:size()[2] do
+					inputs[j]=trainx[{fine[i], j, {}, {}}]:cuda()
+				end
+				targets[1] = torch.reshape(trainy[{fine[i], 1, {}}], params.batch_size, 1):cuda()
+
+				local outputs = rnn:forward(inputs)
+				local err = criterion:forward(outputs[params.seqlen], targets[1])
+				print(string.format("Iter %d Batch %d/%d: Error = %f ; Learning Rate = %f", epoch, global, #fine, err, params.learning_rate))
+				local gradOutputs = criterion:backward(outputs[params.seqlen], targets[1])
+				grad_zero[params.seqlen] = gradOutputs
+				local gradInputs = rnn:backward(inputs, grad_zero)
+				rnn:updateParameters(params.learning_rate)
+				global=global+1
+				
+			end
 			epoch = epoch+1
 		end
 		torch.save(string.format("minmax_full%dLSTMs_%d_FINETUNED.t7", params.num_layers, iteration), rnn)
 	end
-	
 else
 
 	rnn = torch.load(params.load_from)
+	print("NETWORK DESIGN:\n\n")
+	print(rnn)
 	local criterion = nn.AbsCriterion()
 	rnn:evaluate()
 	local f = hdf5.open('minmax_full_dataset.h5', 'r')
@@ -227,14 +248,22 @@ else
 		
 		print ('\n\t\t........................................\n')
 		
-		local x, y = output[params.seqlen], targets[1]
+		local x, y, iteration = output[params.seqlen], targets[1], 0
 		
 		--print ("Pearson Correlation Co-efficient R: "..string.format("%1.4f", (32*torch.sum(torch.cmul(x,y))-torch.sum(x)*torch.sum(y))/math.sqrt((32*torch.sum(torch.cmul(x,x))-torch.sum(x)*torch.sum(x))*(32*torch.sum(torch.cmul(y,y))-torch.sum(y)*torch.sum(y)))))
+
+		for line in io.lines('minmax_full_params.txt') do
+			iteration=tonumber(line)
+			break
+		end
 		
+		gnuplot.pngfigure(string.format('minmax_full%dLSTMs_%d_TEST%d.png', params.num_layers, iteration, i))
 		gnuplot.axis({0,35,0,0.5})
 		gnuplot.plot({'Actual Precipitation', torch.range(1, params.batch_size), torch.mul(torch.add(torch.mul(torch.add(torch.reshape(targets[1], params.batch_size), 1), 0.5*(max[16]-min[16])), min[16]), 0.0393701),'+'}, {'Predicted Line', torch.range(1, params.batch_size), torch.mul(torch.add(torch.mul(torch.add(torch.reshape(output[params.seqlen], params.batch_size), 1), 0.5*(max[16]-min[16])), min[16]), 0.0393701),'-'})
 		
-		sleep(1)
+		gnuplot.plotflush()
+		
+		--sleep(1)
 		
 	end	
 
