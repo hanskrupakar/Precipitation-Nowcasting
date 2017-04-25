@@ -131,7 +131,7 @@ if not params.test then
 				local outputs = rnn:forward(inputs)
 				local err = criterion:forward(torch.add(torch.mul(torch.add(outputs[params.seqlen], 1), 0.5*(max[16]-min[16])), min[16]), torch.add(torch.mul(torch.add(targets[1], 1), 0.5*(max[16]-min[16])), min[16]))
 			 
-				local file = io.open(string.format('finetune_full_%f.txt', params.finetune_err), 'a')	
+				local file = io.open(string.format('finetune_temp.txt', params.finetune_err), 'a')	
 				
 				if prev_err<params.finetune_err then
 					if ck>0 then
@@ -175,8 +175,8 @@ if not params.test then
 			iteration = iteration + 1
 			
 			if not params.finetune then
-				local file = io.open(string.format('finetune_full_%f.txt', params.finetune_err), 'w+')
-				file:close()
+				os.remove(string.format('finetune_full_%f.txt', params.finetune_err))
+				os.rename('finetune_temp.txt', string.format('finetune_full_%f.txt', params.finetune_err))
 			end
 		end
 	end
