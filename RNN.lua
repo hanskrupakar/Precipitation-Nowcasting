@@ -16,7 +16,8 @@ cmd:text()
 cmd:text('Precipitation Nowcasting')
 cmd:text()
 cmd:text('Options')
-cmd:option('-num_layers',4,'No of hidden LSTM layers')
+cmd:option('-num_layers',4,'No of hidden layers')
+cmd:option('-ntype','FastLSTM','Type of RNN (FastLSTM, GRU, MuFuRu [Multi-functional Recurrent Unit])')
 cmd:option('-test',false,'Train/Test Flag')
 cmd:option('-iters',100,'No. of iterations on dataset')
 cmd:option('-batch_size',32,'Batch size for BGD')
@@ -47,9 +48,14 @@ if not params.test then
 		rnn:add(nn.Linear(params.input_size, params.hidden_size))
 
 		for i=1, params.num_layers do
-
-			rnn:add(nn.FastLSTM(params.hidden_size, params.hidden_size))
-
+			
+			if params.ntype=='FastLSTM' then
+				rnn:add(nn.FastLSTM(params.hidden_size, params.hidden_size))
+			elseif params.ntype=='GRU' then
+				rnn:add(nn.GRU(params.hidden_size, params.hidden_size))
+			elseif params.ntype=='MuFuRu' then
+				rnn:add(nn.MuFuRu(params.hidden_size, params.hidden_size))
+			end
 		end
 
 		rnn:add(nn.Linear(params.hidden_size, params.output_size))
@@ -69,7 +75,9 @@ if not params.test then
 				elseif iter==2 then
 					checkpoint=tonumber(line)+1
 				else
-					params.learning_rate=tonumber(line)
+					if params.learning_rate>=tonumber(line) then
+						params.learning_rate=tonumber(line)
+					end
 				end
 				iter = iter + 1
 			end
@@ -160,7 +168,7 @@ if not params.test then
 					rnn:updateParameters(params.learning_rate)
 			
 					if i%500==0 then
-						torch.save(string.format("minmax_full_%dLSTMs_%d.%d.t7", params.num_layers, iteration, i), rnn)
+						torch.save(string.format("minmax_full_%d%ss_%d.%d.t7", params.num_layers, params.ntype, iteration, i), rnn)
 						local file = io.open('minmax_full_params.txt', 'w')
 						file:write(iteration..'\n'..i..'\n'..params.learning_rate)
 						file:close()
@@ -214,7 +222,7 @@ if not params.test then
 			end
 			epoch = epoch+1
 		end
-		torch.save(string.format("minmax_full%dLSTMs_%d_FINETUNED.t7", params.num_layers, iteration), rnn)
+		torch.save(string.format("minmax_full%d%ss_%d_FINETUNED.t7", params.num_layers, params.ntype, iteration), rnn)
 	end
 else
 
@@ -257,7 +265,7 @@ else
 			break
 		end
 		
-		gnuplot.pngfigure(string.format('minmax_full%dLSTMs_%d_TEST%d.png', params.num_layers, iteration, i))
+		gnuplot.pngfigure(string.format('minmax_full%d%ss_%d_TEST%d.png', params.num_layers, params.ntype, iteration, i))
 		gnuplot.axis({0,35,0,0.5})
 		gnuplot.plot({'Actual Precipitation', torch.range(1, params.batch_size), torch.mul(torch.add(torch.mul(torch.add(torch.reshape(targets[1], params.batch_size), 1), 0.5*(max[16]-min[16])), min[16]), 0.0393701),'+'}, {'Predicted Line', torch.range(1, params.batch_size), torch.mul(torch.add(torch.mul(torch.add(torch.reshape(output[params.seqlen], params.batch_size), 1), 0.5*(max[16]-min[16])), min[16]), 0.0393701),'-'})
 		
