@@ -38,7 +38,16 @@ Amount of disk space required:
     322MB for the hdf5 file created from dataset for torch
     1.6GB each for every checkpoint file created
     
-STEP 4: Run the preprocessing script `data.py` for Text-only dataset extraction and `extract.py` both Agrimet and NEXRAD extraction dataset.
+STEP 4: Run the preprocessing script `data.py` for Text-only dataset extraction and `extract.py` both Agrimet and NEXRAD extraction dataset. 
+
+Command Line Options:
+
+Data Preprocessing
+
+Options
+
+    -batch_size        No of entries per batch
+    -method		Preferred method of preprocessing (zscore/minmax)	
  
 STEP 5: Run RNN.lua for training, checkpointing, testing and visualization using the same HDF5 file created during preprocessing.
  
